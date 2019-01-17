@@ -1,0 +1,102 @@
+//
+//  ViewController.swift
+//  testMultipeer1123
+//
+//  Created by Betty on 2018/11/23.
+//  Copyright © 2018 Betty. All rights reserved.
+//
+
+import UIKit
+import MultipeerConnectivity
+
+class ViewController: UIViewController {
+    
+    let textView = UITextView()
+    var messageTextField: UITextField?
+    
+    let manager = ChatService.sharedInstance
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        self.title = "chat"
+        manager.delegate = self
+        
+        addSubviews()
+        addConfigures()
+        addConstraints()
+        
+        manager.startManager()
+    }
+    
+    func addSubviews() {
+        self.view.addSubview(textView)
+    }
+    
+    func addConfigures() {
+        extendedLayoutIncludesOpaqueBars = true
+        let sendItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(didTapMessageButton))
+        self.navigationItem.setRightBarButton(sendItem, animated: false)
+        
+        textView.isEditable = false
+        textView.font = UIFont.systemFont(ofSize: 18)
+    }
+    
+    func addConstraints() {
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            textView.topAnchor.constraint(equalTo: view.topAnchor),
+            textView.leftAnchor.constraint(equalTo: view.leftAnchor),
+            textView.rightAnchor.constraint(equalTo: view.rightAnchor),
+            textView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            ])
+    }
+    
+    @objc func didTapMessageButton() {
+        showSendMessageAlert()
+    }
+    
+    func showSendMessageAlert() {
+        let alert = UIAlertController(title: "Message", message: "Enter message", preferredStyle: .alert)
+        let cancelButton = UIAlertAction(title: "cancel", style: .cancel, handler: nil)
+        
+        let sendButton = UIAlertAction(title: "send", style: .default, handler: { _ in
+            if let message = alert.textFields?.first?.text {
+                self.send(message: message)
+            }
+        })
+        
+        alert.addAction(cancelButton)
+        alert.addAction(sendButton)
+        alert.addTextField(configurationHandler: nil)
+        present(alert, animated: true, completion: nil)
+    }
+    
+    func send(message: String) {
+        if let data = message.data(using: .utf8) {
+            self.textView.text += UIDevice.current.name + ":" + message + "\n"
+            manager.send(data: data)
+        }
+    }
+}
+
+extension ViewController: ChatServiceDelegate {
+    func mcManager(manager: ChatService, session: MCSession, didReceive data: Data, from peer: MCPeerID) {
+        if let message = String(data: data, encoding: .utf8) {
+            self.textView.text += peer.displayName + ":" + message + "\n"
+        }
+    }
+    
+    func mcManager(manager: ChatService, session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
+        DispatchQueue.main.async {
+            switch state {
+            case .connecting:
+                self.textView.text += "--- connecting: \(peerID.displayName) ---\n"
+            case .connected:
+                self.textView.text += "--- connected: \(peerID.displayName) ---\n"
+            case .notConnected:
+                self.textView.text += "--- notConnected: \(peerID.displayName) ---\n"
+            }
+        }
+    }
+}
